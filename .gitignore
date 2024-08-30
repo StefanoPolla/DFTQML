@@ -1,3 +1,14 @@
+# Large directory with text-form data. We only upload the consolidated hdf5 data files
+/main/data/*
+
+# Mac OSX
+.DS_Store
+
+# vscode
+.vscode
+
+# ********* python *********
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
