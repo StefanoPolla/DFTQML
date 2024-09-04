@@ -11,4 +11,4 @@ The code consists of:
 To reproduce the results:
 1. install the dftqml package by running `pip install .`
 2. run the desired script in `./main`, in order (optional, the provided data/models can be used instead)
-3. run the notebooks to reproduce the plots
+3. run the notebooks to reproduce the plots (additionally requires jupyter and matplotlib)
