@@ -11,12 +11,12 @@ requirements = [
     "numpy",
     "scipy",
     "keras==2.15.0",
-    "openfermion>=1.5",
+    "openfermion==1.5",
     "cirq==1.3.0",
     "tensorflow==2.15.1",
     "scikit-learn==1.4.1.post1",
-    "pennylane>=0.31.1",
-    "xgboost>=2.0.3"
+    "pennylane==0.31.1",
+    "xgboost==2.0.3"
 ]
 
 info = {
@@ -38,7 +38,7 @@ info = {
 
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.9",
     "License :: OSI Approved :: Apache Software License",
     "Intended Audience :: Science/Research",
 ]
