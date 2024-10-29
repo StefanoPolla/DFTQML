@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.sparse
 import itertools
+import attrs
 
 import openfermion as of
 
@@ -77,48 +78,7 @@ def projector_block_and_singlet(nsites: int, nelec: int, up_then_down: bool = Tr
 def project_operator(operator: ArrayLike, projector: ArrayLike) -> ArrayLike:
     return projector @ operator @ projector.T.conj()
 
-
-def density_operator(nsites: int, spin_convention: str) -> ArrayLike[openfermion.FermionOperator]:
-    """
-    Returns an array representing the density operator for a given spin convention.
-    """
-    if spin_convention == "up_then_down":
-        self.density = [
-            of.FermionOperator(
-                (
-                    (i, 1),
-                    (i, 0),
-                ),
-            )
-            + of.FermionOperator(
-                (
-                    (i + nsites, 1),
-                    (i + nsites, 0),
-                ),
-            )
-            for i in range(nsites)
-        ]
-    elif spin_convention == "interleaved":
-        self.density = [
-            of.FermionOperator(
-                (
-                    (i, 1),
-                    (i, 0),
-                ),
-            )
-            + of.FermionOperator(
-                (
-                    (i + 1, 1),
-                    (i + 1, 0),
-                ),
-            )
-            for i in range(0, 2 * nsites, 2)
-        ]
-    else:
-        raise ValueError("spin_convention should be 'up_then_down' or 'interleaved'")
-    return self.density
-
-
+@frozen
 class FermiHubbardChain:
     """
     This class represents a Fermi-Hubbard chain system restricted to a
@@ -135,15 +95,6 @@ class FermiHubbardChain:
 
     All the members of this class assume the spin convention up_then_down.
     """
-
-    n_sites: int = field(converter=int)
-    n_particles: int = field(converter=int)
-    u: float = field(default=0.0)
-    t: float = field(default=1.0)
-    spin_convention: bool = field(default="up_then_down")
-    boundary_conditions: str = field(default="periodic")
-
-    # TODO: continue here
 
     def __init__(self, nsites, nelec, coulomb, up_then_down=True):
         self.nsites = nsites
@@ -168,7 +119,38 @@ class FermiHubbardChain:
         self.block_homogeneous_hamiltonian = self.block_project(self.homogeneous_hamiltonian)
         # electron density regardless of spin
 
-        self.density = density_operator(self.nsites, self.spin_convention)
+        if up_then_down:
+            self.density = [
+                of.FermionOperator(
+                    (
+                        (i, 1),
+                        (i, 0),
+                    ),
+                )
+                + of.FermionOperator(
+                    (
+                        (i + nsites, 1),
+                        (i + nsites, 0),
+                    ),
+                )
+                for i in range(nsites)
+            ]
+        else:
+            self.density = [
+                of.FermionOperator(
+                    (
+                        (i, 1),
+                        (i, 0),
+                    ),
+                )
+                + of.FermionOperator(
+                    (
+                        (i + 1, 1),
+                        (i + 1, 0),
+                    ),
+                )
+                for i in range(0, 2 * nsites, 2)
+            ]
         self.block_density = [self.block_project(fop) for fop in self.density]
 
     def block_project(self, symbolic_operator):

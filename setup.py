@@ -16,7 +16,8 @@ requirements = [
     "tensorflow==2.15.1",
     "scikit-learn==1.4.1.post1",
     "pennylane==0.31.1",
-    "xgboost==2.0.3"
+    "xgboost==2.0.3",
+    "attrs==23.2.0"
 ]
 
 info = {
