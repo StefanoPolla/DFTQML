@@ -2,7 +2,7 @@ import numpy as np
 import scipy.sparse
 import itertools
 
-import openfermion as of
+import openfermion
 
 from numpy.typing import ArrayLike
 
@@ -42,10 +42,10 @@ def n_and_sz_indices(nsites: int, nelec: int, up_then_down: bool = True) -> Arra
 def projector_from_block_to_singlet(
     nsites: int, block_indices: ArrayLike, up_then_down: bool = True
 ) -> ArrayLike:
-    s2_fop = of.hamiltonians.s_squared_operator(nsites)
+    s2_fop = openfermion.hamiltonians.s_squared_operator(nsites)
     if up_then_down:
-        s2_fop = of.transforms.reorder(s2_fop, of.up_then_down)
-    s2_block = of.get_sparse_operator(s2_fop, n_qubits=2 * nsites)[block_indices, :][
+        s2_fop = openfermion.transforms.reorder(s2_fop, openfermion.up_then_down)
+    s2_block = openfermion.get_sparse_operator(s2_fop, n_qubits=2 * nsites)[block_indices, :][
         :, block_indices
     ]
     s2_eigvals, s2_eigvecs = np.linalg.eigh(s2_block.toarray())
@@ -78,45 +78,25 @@ def project_operator(operator: ArrayLike, projector: ArrayLike) -> ArrayLike:
     return projector @ operator @ projector.T.conj()
 
 
-def density_operator(nsites: int, spin_convention: str) -> ArrayLike[openfermion.FermionOperator]:
+def density_operator(nsites: int, spin_convention: str) -> list[openfermion.FermionOperator]:
     """
     Returns an array representing the density operator for a given spin convention.
     """
     if spin_convention == "up_then_down":
-        self.density = [
-            of.FermionOperator(
-                (
-                    (i, 1),
-                    (i, 0),
-                ),
-            )
-            + of.FermionOperator(
-                (
-                    (i + nsites, 1),
-                    (i + nsites, 0),
-                ),
-            )
+        density = [
+            openfermion.FermionOperator(((i, 1), (i, 0)))
+            + openfermion.FermionOperator(((i + nsites, 1), (i + nsites, 0)))
             for i in range(nsites)
         ]
     elif spin_convention == "interleaved":
-        self.density = [
-            of.FermionOperator(
-                (
-                    (i, 1),
-                    (i, 0),
-                ),
-            )
-            + of.FermionOperator(
-                (
-                    (i + 1, 1),
-                    (i + 1, 0),
-                ),
-            )
+        density = [
+            openfermion.FermionOperator(((i, 1), (i, 0)))
+            + openfermion.FermionOperator(((i + 1, 1), (i + 1, 0)))
             for i in range(0, 2 * nsites, 2)
         ]
     else:
         raise ValueError("spin_convention should be 'up_then_down' or 'interleaved'")
-    return self.density
+    return density
 
 
 class FermiHubbardChain:
@@ -135,34 +115,33 @@ class FermiHubbardChain:
 
     All the members of this class assume the spin convention up_then_down.
     """
+    # n_sites: int = field(converter=int)
+    # n_particles: int = field(converter=int)
+    # u: float = field(default=0.0)
+    # t: float = field(default=1.0)
+    # spin_convention: bool = field(default="up_then_down")
+    # boundary_conditions: str = field(default="periodic")
 
-    n_sites: int = field(converter=int)
-    n_particles: int = field(converter=int)
-    u: float = field(default=0.0)
-    t: float = field(default=1.0)
-    spin_convention: bool = field(default="up_then_down")
-    boundary_conditions: str = field(default="periodic")
-
-    # TODO: continue here
+    # # TODO: continue here
 
     def __init__(self, nsites, nelec, coulomb, up_then_down=True):
         self.nsites = nsites
         self.nelec = nelec
         self.coulomb = coulomb
 
-        self.up_then_down = up_then_down
+        self.spin_convention = "up_then_down" if up_then_down else "interleaved"
 
         # sector with fixed total particle number, total Z spin, singlet
         self.block_projector = projector_block_and_singlet(nsites, nelec, up_then_down)
         self.block_dimension = self.block_projector.shape[0]
 
         # homogeneous hamiltonian = kinetic + coulomb (zero onsite potential)
-        self.homogeneous_hamiltonian = of.fermi_hubbard(
+        self.homogeneous_hamiltonian = openfermion.fermi_hubbard(
             x_dimension=nsites, y_dimension=1, tunneling=1, coulomb=coulomb, periodic=True
         )
         if up_then_down:
-            self.homogeneous_hamiltonian = of.transforms.reorder(
-                self.homogeneous_hamiltonian, of.up_then_down
+            self.homogeneous_hamiltonian = openfermion.transforms.reorder(
+                self.homogeneous_hamiltonian, openfermion.up_then_down
             )
 
         self.block_homogeneous_hamiltonian = self.block_project(self.homogeneous_hamiltonian)
@@ -173,7 +152,7 @@ class FermiHubbardChain:
 
     def block_project(self, symbolic_operator):
         return project_operator(
-            of.get_sparse_operator(symbolic_operator, n_qubits=2 * self.nsites),
+            openfermion.get_sparse_operator(symbolic_operator, n_qubits=2 * self.nsites),
             self.block_projector,
         )
 
@@ -184,7 +163,7 @@ class FermiHubbardChain:
             return self.block_projector @ state
         raise ValueError("state size does not match block size nor full Hilbert space size")
 
-    def hamiltonian(self, potential=None) -> of.FermionOperator:
+    def hamiltonian(self, potential=None) -> openfermion.FermionOperator:
         if potential is None:
             return self.homogeneous_hamiltonian
         else:
