@@ -1,9 +1,10 @@
-import numpy as np
-import scipy.sparse
 import itertools
+from functools import cached_property
 
+import numpy as np
 import openfermion
-
+import scipy.sparse
+from attrs import field, frozen
 from numpy.typing import ArrayLike
 
 
@@ -99,12 +100,18 @@ def density_operator(nsites: int, spin_convention: str) -> list[openfermion.Ferm
     return density
 
 
+@frozen
 class FermiHubbardChain:
     """
-    This class represents a Fermi-Hubbard chain system restricted to a
-    symmetry sector aka block (fixed particle number, SZ = 0, and S^2 = 0).
-    The tunneling and coulomb energies are specified, while the on-site
-    potential is left unspecified (requested as a parameter in some functions.
+    Fermi-Hubbard chain system restricted to a symmetry sector (block).
+    
+    Used symmetries are: 
+        - fixed particle number
+        - zero spin along quantization axis SZ = 0
+        - total spin singlet S^2 = 0
+        
+    The tunneling and coulomb energies are specified, while the on-site potential is left 
+    unspecified (requested as a parameter in some functions).
 
     This class allows to reuse heavy-to-compute variables that depend on the
     system size and number of electrons, such as the local density operators
@@ -113,53 +120,61 @@ class FermiHubbardChain:
     The class defines method to obtain relevant operators for the system,
     and ground state properties (obtained through exact diagonalization).
 
-    All the members of this class assume the spin convention up_then_down.
+    Args:
+        n_sites: number of sites
+        n_particles: number of particles
+        u: Coulomb repulsion. Defaults to 0.0.
+        t: Tunneling energy. Defaults to 1.0.
+        spin_convention: Spin convention, can be "up_then_down" (default) or "interleaved".
+        boundary_conditions (str, optional): Boundary conditions, can be "periodic" (default) or
+            "open".
     """
-    # n_sites: int = field(converter=int)
-    # n_particles: int = field(converter=int)
-    # u: float = field(default=0.0)
-    # t: float = field(default=1.0)
-    # spin_convention: bool = field(default="up_then_down")
-    # boundary_conditions: str = field(default="periodic")
+    n_sites: int = field(converter=int)
+    n_particles: int = field(converter=int)
+    u: float = field(default=0.0)
+    t: float = field(default=1.0)
+    spin_convention: bool = field(default="up_then_down")
+    boundary_conditions: str = field(default="periodic")
 
-    # # TODO: continue here
+    @cached_property
+    def block_projector(self):
+        up_then_down = self.spin_convention == "up_then_down"
+        return projector_block_and_singlet(self.n_sites, self.n_particles, up_then_down)
 
-    def __init__(self, nsites, nelec, coulomb, up_then_down=True):
-        self.nsites = nsites
-        self.nelec = nelec
-        self.coulomb = coulomb
+    @property
+    def block_dimension(self):
+        return self.block_projector.shape[0]
 
-        self.spin_convention = "up_then_down" if up_then_down else "interleaved"
-
-        # sector with fixed total particle number, total Z spin, singlet
-        self.block_projector = projector_block_and_singlet(nsites, nelec, up_then_down)
-        self.block_dimension = self.block_projector.shape[0]
-
-        # homogeneous hamiltonian = kinetic + coulomb (zero onsite potential)
-        self.homogeneous_hamiltonian = openfermion.fermi_hubbard(
-            x_dimension=nsites, y_dimension=1, tunneling=1, coulomb=coulomb, periodic=True
+    @cached_property
+    def homogeneous_hamiltonian(self):
+        """homogeneous hamiltonian = kinetic + coulomb (zero onsite potential)"""
+        periodic = self.boundary_conditions == "periodic"
+        ham = openfermion.fermi_hubbard(
+            x_dimension=self.n_sites, y_dimension=1, tunneling=1, coulomb=self.u, periodic=periodic
         )
-        if up_then_down:
-            self.homogeneous_hamiltonian = openfermion.transforms.reorder(
-                self.homogeneous_hamiltonian, openfermion.up_then_down
-            )
+        if self.spin_convention == "up_then_down":
+            ham = openfermion.transforms.reorder(ham, openfermion.up_then_down)
+        return ham
 
-        self.block_homogeneous_hamiltonian = self.block_project(self.homogeneous_hamiltonian)
-        # electron density regardless of spin
+    @cached_property
+    def block_homogeneous_hamiltonian(self):
+        return self._symop_to_block(self.homogeneous_hamiltonian)
 
-        self.density = density_operator(self.nsites, self.spin_convention)
-        self.block_density = [self.block_project(fop) for fop in self.density]
+    @cached_property
+    def block_density_operators(self) -> np.ndarray:
+        """block operators for spin-summed electron density. Axis 0 is the site index."""
+        density = density_operator(self.n_sites, self.spin_convention)
+        return np.array([self._symop_to_block(fop) for fop in density])
 
-    def block_project(self, symbolic_operator):
-        return project_operator(
-            openfermion.get_sparse_operator(symbolic_operator, n_qubits=2 * self.nsites),
-            self.block_projector,
-        )
+    def _symop_to_block(self, symbolic_operator):
+        sparse_op = openfermion.get_sparse_operator(symbolic_operator, n_qubits=2 * self.n_sites)
+        projected_op = project_operator(sparse_op, self.block_projector)
+        return projected_op
 
     def _check_and_project_state(self, state):
         if len(state) == self.block_dimension:
             return state
-        if len(state) == 4**self.nsites:
+        if len(state) == 4**self.n_sites:
             return self.block_projector @ state
         raise ValueError("state size does not match block size nor full Hilbert space size")
 
@@ -167,7 +182,7 @@ class FermiHubbardChain:
         if potential is None:
             return self.homogeneous_hamiltonian
         else:
-            if len(potential) != self.nsites:
+            if len(potential) != self.n_sites:
                 raise ValueError("potential has the wrong lenght")
             return self.homogeneous_hamiltonian + np.dot(potential, self.density)
 
@@ -175,16 +190,11 @@ class FermiHubbardChain:
         if potential is None:
             return self.block_homogeneous_hamiltonian
         else:
-            if len(potential) != self.nsites:
+            if len(potential) != self.n_sites:
                 raise ValueError("potential has the wrong lenght")
             return self.block_homogeneous_hamiltonian + np.tensordot(
-                potential, self.block_density, axes=([0], [0])
+                potential, self.block_density_operators, axes=([0], [0])
             )
-
-    def homogeneous_block_gse(self):
-        """ground state energy of `block_homogeneous_hamiltonian`
-        homogeneous hamiltonian = kinetic + coulomb (zero onsite potential)"""
-        return scipy.sparse.linalg.eigsh(self.block_homogeneous_hamiltonian, k=1, which="SA")[0][0]
 
     def ground_energy_and_state(self, potential: ArrayLike = None):
         """
@@ -203,7 +213,8 @@ class FermiHubbardChain:
 
     def density_expectation(self, state):
         state = self._check_and_project_state(state)
-        return np.real([state.conj() @ nop @ state for nop in self.block_density])
+        density = np.einsum("j, ijk, k", state.conj(), self.block_density_operators, state)
+        return np.real(density)
 
     def homogeneous_energy_expectation(self, state):
         state = self._check_and_project_state(state)

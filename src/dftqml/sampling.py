@@ -16,14 +16,14 @@ class DFTIOSampler():
         _, self.ground_state = system.ground_energy_and_state(potential)
 
         # prepare and store CB states probabilities
-        self.block_indices = n_and_sz_indices(system.nsites, system.nelec)
+        self.block_indices = n_and_sz_indices(system.n_sites, system.n_particles)
         unprojector = system.block_projector[:, self.block_indices].T.conj()
         unprojected_ground_state = unprojector @ self.ground_state
         self.diagonal_block_probabilites = np.abs(unprojected_ground_state)**2
 
         # prepate and store tunneling Hamiltonian eigenbasis probabilites
-        noninteracting_system = FermiHubbardChain(system.nsites, system.nelec,
-                                                  coulomb=0.)
+        noninteracting_system = FermiHubbardChain(system.n_sites, system.n_particles,
+                                                  u=0.)
         t_block_hamitonian = noninteracting_system.block_hamiltonian()
         t_eigvals, t_eigvecs = np.linalg.eigh(t_block_hamitonian)
         self.tunneling_eigprobs = np.abs(
@@ -36,7 +36,7 @@ class DFTIOSampler():
 
     def sample_cb_states(self, nshots):
         return binary_expansion(self.sample_diagonal_indices(nshots),
-                                2 * self.system.nsites)
+                                2 * self.system.n_sites)
 
     # def density_from_idx_samples(self, idx_samples):
     #     print('s')
@@ -61,7 +61,7 @@ class DFTIOSampler():
             axis=0)
 
     def average_coulomb_from_cb_samples(self, cb_samples):
-        return self.system.coulomb * np.sum(
+        return self.system.u * np.sum(
             self.onsite_correlator_from_cb_samples(cb_samples))
 
     def sample_tunneling_eigenvalues(self, nshots):

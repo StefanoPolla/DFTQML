@@ -42,10 +42,10 @@ class TestSampling(unittest.TestCase):
 
     def test_coulomb_sampling(self):
         coulomb_fop = of.transforms.reorder(
-            of.fermi_hubbard(self.sampler.system.nsites, 1, 0, self.sampler.system.coulomb),
+            of.fermi_hubbard(self.sampler.system.n_sites, 1, 0, self.sampler.system.u),
             of.up_then_down,
         )
-        coulomb_block = self.sampler.system.block_project(coulomb_fop)
+        coulomb_block = self.sampler.system._symop_to_block(coulomb_fop)
         target_coulomb = expectation(self.sampler.ground_state, coulomb_block)
 
         cb_samples = self.sampler.sample_cb_states(self.nshots)
