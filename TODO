@@ -1,4 +1,0 @@
-- write a test checking that the new module behaves like the old
-- continue converting the new module to using attrs
-
-- check auto-installation still works with attrs

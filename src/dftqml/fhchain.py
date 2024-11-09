@@ -136,6 +136,25 @@ class FermiHubbardChain:
     spin_convention: bool = field(default="up_then_down")
     boundary_conditions: str = field(default="periodic")
 
+    @n_particles.validator
+    def _n_particles_validator(self, attribute, value):
+        if value <= 0:
+            raise ValueError("n_particles must be positive")
+        if value >= 2 * self.n_sites:
+            raise ValueError("n_particles must be less than 2 * n_sites")
+        if value % 2 != 0:
+            raise ValueError("n_particles must be even in order to allow for a singlet state")
+            
+    @spin_convention.validator
+    def _spin_convention_validator(self, attribute, value):
+        if value not in ["up_then_down", "interleaved"]:
+            raise ValueError("spin_convention must be 'up_then_down', or 'interleaved'")
+
+    @boundary_conditions.validator
+    def _boundary_conditions_validator(self, attribute, value):
+        if value not in ["periodic", "open"]:
+            raise ValueError("boundary_conditions must be 'periodic', or 'open'")
+
     @cached_property
     def block_projector(self):
         up_then_down = self.spin_convention == "up_then_down"
