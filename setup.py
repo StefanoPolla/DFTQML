@@ -12,11 +12,12 @@ requirements = [
     "scipy",
     "keras==2.15.0",
     "openfermion==1.5",
-    "cirq==1.3.0",
+    "cirq-core==1.3.0",
     "tensorflow==2.15.1",
     "scikit-learn==1.4.1.post1",
     "pennylane==0.31.1",
-    "xgboost==2.0.3"
+    "xgboost==2.0.3",
+    "attrs>=23.0.0"
 ]
 
 info = {

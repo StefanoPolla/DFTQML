@@ -66,7 +66,6 @@ os.makedirs(exact_dir, exist_ok=True)
 
 rng = np.random.default_rng()
 system = FermiHubbardChain(args.L, args.N, args.U)
-homogeneous_gstate_energy = system.homogeneous_block_gse()
 
 for i in tqdm(range(starting_index, args.ninst + starting_index)):
     for _ in range(N_ATTEMPTS):
