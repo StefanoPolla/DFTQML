@@ -126,7 +126,7 @@ os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
 # *** Load model, potentials and eventual exact densities ***
 
-strengths = np.linspace(0.1, 4, 10)
+strengths = np.linspace(0.1, 2, 200)
 
 
 model = tfmodel.load_model(model_path)
@@ -153,6 +153,7 @@ dft_energies_exact = []
 system = FermiHubbardChain(args.L, args.N, args.U)
 
 for j in range(len(potentials)):
+    print(f'calculating strength: {strengths[j]:.3f}')
     # if args.init == "cheat":
     #     x0 = exact_densities[j]
     if args.init == "random":
@@ -163,7 +164,7 @@ for j in range(len(potentials)):
 
     density, energy = ksopt.optimize_dftio(model, potentials[j], x0, verbose=1)
     densities.append(density)
-    dft_energies.append(energy)
+    dft_energies.append(energy[0])
 
     density_exact, energy_exact = system.ground_state_dftio(potentials[j])
     densities_exact.append(density_exact)
