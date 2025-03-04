@@ -21,19 +21,12 @@ import numpy as np
 from dftqml import tfmodel, utils, ksopt
 from tensorflow import autograph
 
-from dftqml.fhchain import FermiHubbardChain
-
-
-def harmonic_potential(L, strength):
-    return np.linspace(-strength, strength, L)**2 - strength**2/2
-    # return np.concatenate()
-
 
 DATA_DIR = "./data-h5"
 MODEL_DIR = "./models/base"
 KOHN_SHAM_DIR = "./kohn-sham/harmonic"
-# N_TEST_POTENTIALS = 1000
-# FIRST_TEST_POTENTIAL = 1000
+N_TEST_POTENTIALS = 1000
+FIRST_TEST_POTENTIAL = 1000
 
 # *** suppress autograph warnings ***
 
@@ -44,42 +37,30 @@ logging.getLogger("tensorflow").setLevel(logging.ERROR)
 
 parser = argparse.ArgumentParser()
 
-# parser.add_argument("L", help="number of sites", type=int)
-# parser.add_argument("N", help="number of electrons", type=int)
-# parser.add_argument("U", help="coulomb repulsion", type=float)
-# parser.add_argument(
-#     "source",
-#     help="source data subdirectory for model picking" "(e.g. `vqe/depth1` or `exact`)",
-#     type=str,
-# )
-# parser.add_argument("ndata", help="size of the dataset (train + val)", type=int)
-# parser.add_argument("split", help="index of the fold (from 0 to 4)", type=int)
+parser.add_argument("L", help="number of sites", type=int)
+parser.add_argument("N", help="number of electrons", type=int)
+parser.add_argument("U", help="coulomb repulsion", type=float)
+parser.add_argument(
+    "source",
+    help="source data subdirectory for model picking" "(e.g. `vqe/depth1` or `exact`)",
+    type=str,
+)
+parser.add_argument("ndata", help="size of the dataset (train + val)", type=int)
+parser.add_argument("split", help="index of the fold (from 0 to 4)", type=int)
 
-# parser.add_argument(
-#     "init",
-#     help="choose which initialization to use for the density. "
-#     "cheat picks the exact density; "
-#     "random picks a random density; "
-#     "uniform picks a uniform density.",
-#     type=str,
-#     choices=["cheat", "random", "uniform"],
-# )
+parser.add_argument(
+    "init",
+    help="choose which initialization to use for the density. "
+    "cheat picks the exact density; "
+    "random picks a random density; "
+    "uniform picks a uniform density.",
+    type=str,
+    choices=["cheat", "random", "uniform"],
+)
 
-# parser.add_argument("--overwrite", help="overwrite existing ouput", action="store_true")
+parser.add_argument("--overwrite", help="overwrite existing ouput", action="store_true")
 
 args = parser.parse_args()
-
-args.L = 8
-args.N = 4
-args.U = 4.0
-args.overwrite = True
-
-args.source = 'sampling/nshots1000'
-# args.source = 'exact'
-args.ndata = 1000
-args.split = 0
-args.init = 'random'
-
 
 # *** Manage data directories and load input ***
 
@@ -126,12 +107,11 @@ os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
 # *** Load model, potentials and eventual exact densities ***
 
-strengths = np.linspace(0.1, 2, 200)
+
 
 
 model = tfmodel.load_model(model_path)
 # potentials = utils.load_potentials(potentials_file, N_TEST_POTENTIALS, FIRST_TEST_POTENTIAL)
-potentials = [harmonic_potential(args.L, strength) for strength in strengths]
 
 
 # if args.init == "cheat":
