@@ -21,12 +21,11 @@ import numpy as np
 from dftqml import tfmodel, utils, ksopt
 from tensorflow import autograph
 
-
 DATA_DIR = "./data-h5"
 MODEL_DIR = "./models/base"
 KOHN_SHAM_DIR = "./kohn-sham/harmonic"
-N_TEST_POTENTIALS = 1000
-FIRST_TEST_POTENTIAL = 1000
+N_TEST_POTENTIALS = 800
+FIRST_TEST_POTENTIAL = 0
 
 # *** suppress autograph warnings ***
 
@@ -71,8 +70,8 @@ model_path = os.path.join(
     f"ndata{args.ndata}",
     f"split{args.split}",
 )
-potentials_file = os.path.join(DATA_DIR, f"L{args.L}-N{args.N}-U{args.U}", "potentials.h5")
-cheat_init_file = os.path.join(DATA_DIR, f"L{args.L}-N{args.N}-U{args.U}", "exact.h5")
+potentials_file = os.path.join(DATA_DIR, f"L{args.L}-N{args.N}-U{args.U}", "harmonic_potentials.h5")
+cheat_init_file = os.path.join(DATA_DIR, f"L{args.L}-N{args.N}-U{args.U}", "harmonic_exact.h5")
 output_file = os.path.join(
     KOHN_SHAM_DIR,
     args.init,
@@ -107,57 +106,39 @@ os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
 # *** Load model, potentials and eventual exact densities ***
 
-
-
-
 model = tfmodel.load_model(model_path)
-# potentials = utils.load_potentials(potentials_file, N_TEST_POTENTIALS, FIRST_TEST_POTENTIAL)
+potentials, strengths = utils.load_harmonic_potentials(potentials_file, N_TEST_POTENTIALS, FIRST_TEST_POTENTIAL)
 
 
-# if args.init == "cheat":
-#     exact_densities, _ = utils.load_dft_data(
-#         cheat_init_file, N_TEST_POTENTIALS, FIRST_TEST_POTENTIAL
-#     )
+if args.init == "cheat":
+    exact_densities, _ = utils.load_dft_data(
+        cheat_init_file, N_TEST_POTENTIALS, FIRST_TEST_POTENTIAL
+    )
 
 
 # *** Run Kohn-Sham optimization ***
 
-# indices = np.arange(N_TEST_POTENTIALS) + FIRST_TEST_POTENTIAL
+indices = np.arange(N_TEST_POTENTIALS) + FIRST_TEST_POTENTIAL
 densities = []
 dft_energies = []
 
-densities_exact = []
-dft_energies_exact = []
-
-
-system = FermiHubbardChain(args.L, args.N, args.U)
-
 for j in range(len(potentials)):
-    print(f'calculating strength: {strengths[j]:.3f}')
-    # if args.init == "cheat":
-    #     x0 = exact_densities[j]
-    if args.init == "random":
+    if args.init == "cheat":
+        x0 = exact_densities[j]
+    elif args.init == "random":
         x0 = np.random.rand(args.L)
         x0 *= args.N / np.sum(x0)
     elif args.init == "uniform":
         x0 = np.ones(args.L) * args.N / args.L
 
-    density, energy = ksopt.optimize_dftio(model, potentials[j], x0, verbose=1)
+    density, energy = ksopt.optimize_dftio(model, potentials[j], x0)
     densities.append(density)
-    dft_energies.append(energy[0])
-
-    density_exact, energy_exact = system.ground_state_dftio(potentials[j])
-    densities_exact.append(density_exact)
-    dft_energies_exact.append(energy_exact)
+    dft_energies.append(energy)
 
 
 # *** Save output ***
 
-
 with h5py.File(output_file, "w") as hf:
     hf.create_dataset("dft_energies", data=dft_energies)
     hf.create_dataset("densities", data=densities)
-    hf.create_dataset("dft_energies_exact", data=dft_energies_exact)
-    hf.create_dataset("densities_exact", data=densities_exact)
-    hf.create_dataset("strengths", data=strengths)
-    hf.create_dataset("potentials", data=potentials)
+    hf.create_dataset("indices", data=indices)
