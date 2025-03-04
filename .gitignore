@@ -1,5 +1,6 @@
 # Large directory with text-form data. We only upload the consolidated hdf5 data files
 /main/data/*
+**/emiel_slurm/*
 
 # Mac OSX
 .DS_Store
