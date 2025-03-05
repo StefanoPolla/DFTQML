@@ -60,7 +60,6 @@ for root, dirs, files in os.walk(in_dirname):
             hf.create_dataset("potentials", data=data)
             hf.create_dataset("indices", data=indices)
         elif "harmonic_potentials" in os.path.split(root)[-1]:
-            print('AHA')
             data = np.array(data)
             hf.create_dataset("potentials", data=data[:, :-1])
             hf.create_dataset("strengths", data=data[:, -1])
