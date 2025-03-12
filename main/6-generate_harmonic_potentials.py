@@ -74,9 +74,9 @@ for i in tqdm(range(len(strengths))):
     for j in range(8):
         strength = strengths[i]
         potential = harmonic_potential(args.L, strength)
-        density, dft_energy = system.ground_state_dftio(potential)
-
         potential = np.roll(potential, j)
 
+        density, dft_energy = system.ground_state_dftio(potential)
+        
         np.savetxt(os.path.join(potentials_dir, f"{i + len(strengths)*j}.dat"), np.concatenate([potential, [strength]]))
         np.savetxt(os.path.join(exact_dir, f"{i + len(strengths)*j}.dat"), np.concatenate([density, [dft_energy]]))
