@@ -24,7 +24,7 @@ from tensorflow import autograph
 DATA_DIR = "./data-h5"
 MODEL_DIR = "./models/base"
 KOHN_SHAM_DIR = "./kohn-sham/harmonic"
-N_TEST_POTENTIALS = 800
+N_TEST_POTENTIALS = 3200
 FIRST_TEST_POTENTIAL = 0
 
 # *** suppress autograph warnings ***
