@@ -71,9 +71,12 @@ strengths = np.linspace(args.strength_min, args.strength_max, args.ninst)
 system = FermiHubbardChain(args.L, args.N, args.U)
 
 for i in tqdm(range(len(strengths))):
-    strength = strengths[i]
-    potential = harmonic_potential(args.L, strength)
-    density, dft_energy = system.ground_state_dftio(potential)
+    for j in range(8):
+        strength = strengths[i]
+        potential = harmonic_potential(args.L, strength)
+        density, dft_energy = system.ground_state_dftio(potential)
 
-    np.savetxt(os.path.join(potentials_dir, f"{i}.dat"), np.concatenate([potential, [strength]]))
-    np.savetxt(os.path.join(exact_dir, f"{i}.dat"), np.concatenate([density, [dft_energy]]))
+        potential = np.roll(potential, j)
+
+        np.savetxt(os.path.join(potentials_dir, f"{i + len(strengths)*j}.dat"), np.concatenate([potential, [strength]]))
+        np.savetxt(os.path.join(exact_dir, f"{i + len(strengths)*j}.dat"), np.concatenate([density, [dft_energy]]))
