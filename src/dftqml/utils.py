@@ -104,9 +104,10 @@ def load_potentials(path: str, n_idcs: int, first_idx: int = 0) -> np.ndarray:
     return potentials
 
 
-def load_harmonic_potentials(path: str, n_idcs: int, first_idx: int = 0) -> np.ndarray:
+def load_harmonic_potentials_and_strengths(path: str, n_idcs: int, first_idx: int = 0) -> np.ndarray:
     """
-    Load the harmonic potentials from a .h5 file.
+    Load the harmonic potentials and strengths from a .h5 file.
+    The strength W defines the potential: V_j = W * (2j/(L-1) - 1) ^ 2
     """
     if not path.endswith(".h5"):
         raise NotImplementedError("only h5 files are supported at the moment")

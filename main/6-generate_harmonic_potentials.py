@@ -1,9 +1,9 @@
 """
-Generate instances of the Fermi-Hubbard chain model with random potentials.
+Generate instances of the Fermi-Hubbard chain model with harmonic potentials.
 For each instance, the ground state density and energy (DFT input-output, DFTIO) are computed using
 exact diagonalization.
-The potentials are saved in the directory `./data/L{L}-N{N}-U{U}/potentials` and the corresponding
-exact DFTIO results are saved in `./data/L{L}-N{N}-U{U}/exact`.
+The potentials are saved in the directory `./data/L{L}-N{N}-U{U}/harmonic_potentials` and the corresponding
+exact DFTIO results are saved in `./data/L{L}-N{N}-U{U}/harmonic_exact`.
 """
 
 import numpy as np

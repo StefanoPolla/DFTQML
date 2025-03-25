@@ -1,8 +1,8 @@
 """!! In development !!
-Run Kohn-Sham-like optimization of density for a set of external potentials using a trained CNN
+Run Kohn-Sham-like optimization of density for a set of harmonic potentials using a trained CNN
 model for the functional.
 
-The external potentials are loaded from `./data-hd5/L{L}-N{N}-U{U}/potentials`.
+The external potentials are loaded from `./data-hd5/L{L}-N{N}-U{U}/harmonic_potentials`.
 The model is loaded from `./models/base/L{L}-N{N}-U{U}/{source}/ndata{ndata}/split{split}`.
 
 The optimizer is initialized with either exact density ('cheat'), 'random' density, or 'uniform'
@@ -107,7 +107,7 @@ os.makedirs(os.path.dirname(output_file), exist_ok=True)
 # *** Load model, potentials and eventual exact densities ***
 
 model = tfmodel.load_model(model_path)
-potentials, strengths = utils.load_harmonic_potentials(potentials_file, N_TEST_POTENTIALS, FIRST_TEST_POTENTIAL)
+potentials, strengths = utils.load_harmonic_potentials_and_strengths(potentials_file, N_TEST_POTENTIALS, FIRST_TEST_POTENTIAL)
 
 
 if args.init == "cheat":

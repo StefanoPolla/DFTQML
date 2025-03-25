@@ -1,7 +1,0 @@
-font.size : 9
-text.usetex : True
-font.family : serif
-xtick.direction : in
-ytick.direction : in
-axes.titlesize : 9
-text.latex.preamble : r"\usepackage{amsmath}"
