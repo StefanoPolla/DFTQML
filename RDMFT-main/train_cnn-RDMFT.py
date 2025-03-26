@@ -15,7 +15,7 @@ from sklearn import model_selection
 from tensorflow import autograph
 import logging
 
-from dftqml import tfmodel, utils
+from dftqml import tfmodel, data_processing
 
 
 N_SPLITS = 5
@@ -36,13 +36,26 @@ parser = argparse.ArgumentParser()
 parser.add_argument("L", help="number of sites", type=int)
 parser.add_argument("N", help="number of electrons", type=int)
 parser.add_argument("U", help="coulomb repulsion", type=float)
-# parser.add_argument("source", help="source file, e.g. L8-N8-U4.0.hdf5", type=str)
 parser.add_argument("ndata", help="size of the dataset (train + val)", type=int)
 
 parser.add_argument("--overwrite", help="overwrite existing ouput", action="store_true")
 
+parser.add_argument(
+    "--augment_by_permutations", help="augment data by permutations", action="store_true"
+)
+parser.add_argument(
+    "--expand_correlators",
+    help="expand correlators to include all local terms",
+    action="store_true",
+)
+
 args = parser.parse_args()
 
+
+if args.augment_by_permutations | args.expand_correlators:
+    raise NotImplementedError(
+        "data augmentation and expansion of correlators are not implemented yet"
+    )
 
 # *** Manage data directories and load input ***
 
@@ -54,8 +67,8 @@ if not os.path.exists(input_file):
     raise FileNotFoundError("the input directory does not exist at " + input_file)
 
 with h5py.File(input_file, "r") as f:
-    one_rdms = f["one_rdms"][:args.ndata]
-    rdmft_energies = f["rdmft_energies"][:args.ndata] # kinetic + interaction energy
+    one_rdms = f["one_rdms"][: args.ndata]
+    rdmft_energies = f["rdmft_energies"][: args.ndata]  # kinetic + interaction energy
 
 # transpose RDMs so the locality index is last, as expected by the data augmentation and model
 one_rdms = one_rdms.transpose((0, 2, 1))
@@ -79,8 +92,12 @@ kfold_gen = model_selection.KFold(n_splits=N_SPLITS).split(one_rdms, rdmft_energ
 
 for k, (train_indices, val_indices) in enumerate(kfold_gen):
     # split and amplify data
-    x_train, y_train = utils.augment_data(one_rdms[train_indices], rdmft_energies[train_indices]) # TODO check augmentation on RDMS
-    x_val, y_val = utils.augment_data(one_rdms[val_indices], rdmft_energies[val_indices])
+    x_train, y_train = data_processing.augment_by_shift_and_mirror(
+        one_rdms[train_indices], rdmft_energies[train_indices]
+    )
+    x_val, y_val = data_processing.augment_by_shift_and_mirror(
+        one_rdms[val_indices], rdmft_energies[val_indices]
+    )
 
     # Train model
     print(f"\n\n**** TRAINING MODEL AT SPLIT {k+1}/{N_SPLITS} ****\n\n")

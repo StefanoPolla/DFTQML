@@ -3,13 +3,13 @@ import matplotlib.pyplot as plt
 import os.path
 import h5py
 from typing import Tuple
-import xgboost.sklearn  
+import xgboost.sklearn
 import matplotlib
 
 DTYPE = np.float32
 
 
-# ------------- Data processing -------------
+# ------------- Data IO -------------
 
 
 def load_dft_data_h5(path: str, n_idcs: int, first_idx=0) -> Tuple:
