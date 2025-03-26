@@ -21,7 +21,7 @@ from dftqml import tfmodel, data_processing
 N_SPLITS = 5
 SCRIPT_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(SCRIPT_DIR, "data")
-MODEL_DIR = os.path.join(SCRIPT_DIR, "models", "rdmftio", "cnn")
+MODEL_DIR = os.path.join(SCRIPT_DIR, "models", "rdmftio")
 
 # *** suppress autograph warnings ***
 
@@ -44,24 +44,29 @@ parser.add_argument(
     "--augment_by_permutations", help="augment data by permutations", action="store_true"
 )
 parser.add_argument(
-    "--expand_correlators",
-    help="expand correlators to include all local terms",
+    "--expand_one_rdm",
+    help="expand one_rdm to include in each j-th column all correlators involving site j",
     action="store_true",
 )
 
 args = parser.parse_args()
 
 
-if args.augment_by_permutations | args.expand_correlators:
+if args.augment_by_permutations:
     raise NotImplementedError(
         "data augmentation and expansion of correlators are not implemented yet"
     )
+
+if args.expand_one_rdm:
+    model_subdir = "cnn-expanded_onerdm"
+else:
+    model_subdir = "cnn"
 
 # *** Manage data directories and load input ***
 
 system_dir = f"L{args.L}-N{args.N}-U{args.U}"
 input_file = os.path.join(DATA_DIR, system_dir + ".hdf5")
-output_dir = os.path.join(MODEL_DIR, system_dir, f"ndata{args.ndata}")
+output_dir = os.path.join(MODEL_DIR, model_subdir, system_dir, f"ndata{args.ndata}")
 
 if not os.path.exists(input_file):
     raise FileNotFoundError("the input directory does not exist at " + input_file)
@@ -73,8 +78,11 @@ with h5py.File(input_file, "r") as f:
 # transpose RDMs so the locality index is last, as expected by the data augmentation and model
 one_rdms = one_rdms.transpose((0, 2, 1))
 
-# if loading data was successful, go on preparing output folder
+# if requested, expand correlators to include all local terms
+if args.expand_one_rdm:
+    one_rdms = data_processing.expand_one_rdm(one_rdms)
 
+# if loading data was successful, go on preparing output folder
 if os.path.exists(output_dir):
     if args.overwrite:
         shutil.rmtree(output_dir)
