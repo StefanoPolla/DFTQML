@@ -104,6 +104,24 @@ def load_potentials(path: str, n_idcs: int, first_idx: int = 0) -> np.ndarray:
     return potentials
 
 
+def load_harmonic_potentials_and_strengths(path: str, n_idcs: int, first_idx: int = 0) -> np.ndarray:
+    """
+    Load the harmonic potentials and strengths from a .h5 file.
+    The strength W defines the potential: V_j = W * (2j/(L-1) - 1) ^ 2
+    """
+    if not path.endswith(".h5"):
+        raise NotImplementedError("only h5 files are supported at the moment")
+    with h5py.File(path, "r") as f:
+        indices = f["indices"]
+        j = np.searchsorted(indices, first_idx)
+        if indices[j] != first_idx:
+            raise ValueError("first_idx not found in indices. Check dataset.")
+
+        potentials = f["potentials"][j : j + n_idcs]
+        strengths = f["strengths"][j : j + n_idcs]
+    return potentials, strengths
+
+
 def augment_data(densities: np.ndarray, dft_energies: np.ndarray) -> Tuple:
     """
     Augment the dataset according to translational and mirror symmetries.
