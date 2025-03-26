@@ -175,3 +175,21 @@ def augment_by_permutations(one_rdms: np.ndarray, rmft_energies: np.ndarray) -> 
     augmented_outputs = np.repeat(rmft_energies, factorial(L))
 
     return augmented_inputs, augmented_outputs
+
+
+# ------------- data shuffling -------------
+
+def shuffle_data(inputs: np.ndarray, outputs: np.ndarray) -> Tuple:
+    """
+    Shuffle the data along the first axis.
+
+    Args:
+        inputs (np.ndarray): input data of shape (n_idcs, ...)
+        outputs (np.ndarray): output data of shape (n_idcs,)
+
+    Returns:
+        Tuple: shuffled_inputs, shuffled_outputs
+    """
+    assert inputs.shape[0] == outputs.shape[0], "Inputs and outputs must have the same number of datapoints."
+    idxs = np.random.permutation(inputs.shape[0])
+    return inputs[idxs], outputs[idxs]

@@ -48,17 +48,28 @@ parser.add_argument(
     help="expand one_rdm to include in each j-th column all correlators involving site j",
     action="store_true",
 )
+parser.add_argument(
+    "--shuffle_data", help="shuffle data within train/val sets before batching", action="store_true"
+)
 
 args = parser.parse_args()
 
-if args.expand_one_rdm and args.augment_by_permutations:
-    model_subdir = "cnn-expanded-augmented"
-elif args.expand_one_rdm:
-    model_subdir = "cnn-expanded"
-elif args.augment_by_permutations:
-    model_subdir = "cnn-augmented"
-else:
-    model_subdir = "cnn"
+# if args.expand_one_rdm and args.augment_by_permutations:
+#     model_subdir = "cnn-expanded-augmented"
+# elif args.expand_one_rdm:
+#     model_subdir = "cnn-expanded"
+# elif args.augment_by_permutations:
+#     model_subdir = "cnn-augmented"
+# else:
+#     model_subdir = "cnn"
+
+model_subdir = "cnn"
+if args.expand_one_rdm:
+    model_subdir += "-expanded"
+if args.augment_by_permutations:
+    model_subdir += "-augmented"
+if args.shuffle_data:
+    model_subdir += "-shuffled"
 
 # *** Manage data directories and load input ***
 
@@ -106,6 +117,11 @@ for k, (train_indices, val_indices) in enumerate(kfold_gen):
     if args.expand_one_rdm:
         x_train = data_processing.one_rdm_compressed_to_all_correlators(x_train)
         x_val = data_processing.one_rdm_compressed_to_all_correlators(x_val)
+
+    # shuffle data
+    if args.shuffle_data:
+        x_train, y_train = data_processing.shuffle_data(x_train, y_train)
+        x_val, y_val = data_processing.shuffle_data(x_val, y_val)
 
     batch_size = 2 * args.L * 10
 
