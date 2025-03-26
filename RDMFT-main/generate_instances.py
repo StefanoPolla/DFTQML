@@ -1,12 +1,22 @@
 """
 Generate instances of the Fermi-Hubbard chain model with random potentials.
-For each instance, the ground state density and energy (DFT input-output, DFTIO) are computed using
-exact diagonalization.
-The potentials are saved in the directory `./data/L{L}-N{N}-U{U}/potentials` and the corresponding
-exact DFTIO results are saved in `./data/L{L}-N{N}-U{U}/dftio/exact`.
 
-TODO : ADD DETAILS ABOUT RDMFTIO
-TODO : find a better way to save the data
+The potentials are generated at random, with a uniform distribution in the range [-W, +W],
+where W is a random number between 0.005 and 2.5. The potentials are then shifted to have zero mean.
+
+Each problem instance is solved by exact diagonalization. From the ground state |GS>, DFT and RDMFT
+input-output quantities are extracted and saved.
+
+The data is saved in a .hdf5 file in the `data` directory, with the filename format 
+`L{L}-N{N}-U{U}.hdf5`. The file contains the following datasets:
+(T - kinetic energy, U - Hubbard interaction energy, V - random local potential energy)
+- `potentials`: the random potentials
+- `ground_energies`: the ground state energies <GS|T + V + U|GS>
+- `dft_energies`: the Hohenberg-Kohn DFT energies <GS|T + U|GS>
+- `densities`: the density vector <GS|c_i^dagger c_i|GS>
+- `rdmft_energies`: the RDMFT energies <GS|T + U + V|GS>
+- `one_rdms`: the one-body reduced density matrices <GS|c_i^dagger c_{i+j}|GS> 
+    (see dftqml.fhchain.FermiHubbardChain.one_rdm for details on the ordering)
 """
 
 import argparse
