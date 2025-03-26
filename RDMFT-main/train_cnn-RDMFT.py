@@ -53,7 +53,7 @@ args = parser.parse_args()
 
 if args.expand_one_rdm and args.augment_by_permutations:
     model_subdir = "cnn-expanded-augmented"
-if args.expand_one_rdm:
+elif args.expand_one_rdm:
     model_subdir = "cnn-expanded"
 elif args.augment_by_permutations:
     model_subdir = "cnn-augmented"
