@@ -51,14 +51,12 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-
-if args.augment_by_permutations:
-    raise NotImplementedError(
-        "data augmentation and expansion of correlators are not implemented yet"
-    )
-
+if args.expand_one_rdm and args.augment_by_permutations:
+    model_subdir = "cnn-expanded-augmented"
 if args.expand_one_rdm:
-    model_subdir = "cnn-expanded_onerdm"
+    model_subdir = "cnn-expanded"
+elif args.augment_by_permutations:
+    model_subdir = "cnn-augmented"
 else:
     model_subdir = "cnn"
 
@@ -80,7 +78,7 @@ one_rdms = one_rdms.transpose((0, 2, 1))
 
 # if requested, expand correlators to include all local terms
 if args.expand_one_rdm:
-    one_rdms = data_processing.expand_one_rdm(one_rdms)
+    one_rdms = data_processing.one_rdm_compressed_to_all_correlators(one_rdms)
 
 # if loading data was successful, go on preparing output folder
 if os.path.exists(output_dir):
@@ -99,13 +97,16 @@ os.makedirs(output_dir, exist_ok=True)
 kfold_gen = model_selection.KFold(n_splits=N_SPLITS).split(one_rdms, rdmft_energies)
 
 for k, (train_indices, val_indices) in enumerate(kfold_gen):
-    # split and amplify data
-    x_train, y_train = data_processing.augment_by_shift_and_mirror(
-        one_rdms[train_indices], rdmft_energies[train_indices]
-    )
-    x_val, y_val = data_processing.augment_by_shift_and_mirror(
-        one_rdms[val_indices], rdmft_energies[val_indices]
-    )
+    # split and augment data
+    if args.augment_by_permutations:
+        augment = data_processing.augment_by_permutations
+    else:
+        augment = data_processing.augment_by_shift_and_mirror
+
+    x_train, y_train = augment(one_rdms[train_indices], rdmft_energies[train_indices])
+    x_val, y_val = augment(one_rdms[val_indices], rdmft_energies[val_indices])
+
+    batch_size = 2 * args.L * 10
 
     # Train model
     print(f"\n\n**** TRAINING MODEL AT SPLIT {k+1}/{N_SPLITS} ****\n\n")
@@ -116,7 +117,7 @@ for k, (train_indices, val_indices) in enumerate(kfold_gen):
         y_train,
         x_val,
         y_val,
-        batch_size=2 * args.L * 10,
+        batch_size=batch_size,
         epochs=200,
         verbose=0,
         shuffle=True,

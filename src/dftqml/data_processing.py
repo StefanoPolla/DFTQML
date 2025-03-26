@@ -1,5 +1,7 @@
 import numpy as np
+from math import factorial
 from typing import Tuple
+import itertools
 
 DTYPE = np.float32
 
@@ -7,38 +9,87 @@ DTYPE = np.float32
 # ------------- one-RDM transformations -------------
 
 
-def expand_one_rdm(one_rdm: np.ndarray) -> np.ndarray:
+def one_rdm_compressed_to_all_correlators(compressed_rdm: np.ndarray) -> np.ndarray:
     """
     Expand one-RDM(s) such that each j-th column contains all correlators involving the j-th site.
-    
+
     The input RDM has shape (L//2 + 1, L), where L is the number of sites. The elements
         `one_rdm[d, i] = <c^\dag_j c_(j+d)>` represent the distance-d correlators at each site j.
 
     The output has shape (L, L), with the same encoding `one_rdm[d, i] = <c^\dag_j c_(j+d)>`.
 
-    NOTE: this construction (as well as rhe compressed encoding) only makes sense for real symmetric
+    NOTE: this construction (as well as the compressed encoding) only makes sense for real symmetric
         one-RDMs, such as the ones from eigenstates of time-reversal-symmetrtic Hamiltonians.
 
     Args:
-        one_rdm (np.ndarray): array of shape (..., L//2 + 1, L), containing the one-RDMs in the
+        compressed_rdm (np.ndarray): array of shape (..., L//2 + 1, L), containing the one-RDMs in the
             compressed encoding, with the local index j on the last axis.
 
     Returns:
         np.ndarray: expanded one-RDM of shape (L, L)
     """
-    shape = one_rdm.shape
+    shape = compressed_rdm.shape
     L = shape[-1]
     m = L // 2 + 1
     assert shape[-2] == m, "The second-to-last axis must have length L//2 + 1."
 
     expanded_rdm = np.zeros((*shape[:-2], L, L), dtype=DTYPE)
-    expanded_rdm[..., :m, :] = one_rdm
+    expanded_rdm[..., :m, :] = compressed_rdm
 
     for d in range(m, L):
-        rolled_row = np.roll(one_rdm[..., (L - d), :], shift=-d, axis=-1)
+        rolled_row = np.roll(compressed_rdm[..., (L - d), :], shift=-d, axis=-1)
         expanded_rdm[..., d, :] = rolled_row
 
     return expanded_rdm
+
+
+def one_rdm_compressed_to_symmetric_matrix(compressed_rdm: np.ndarray) -> np.ndarray:
+    """
+    Expand one-RDM(s) such that each j-th column contains all correlators involving the j-th site.
+
+    The input RDM has shape (L//2 + 1, L), where L is the number of sites. The elements
+        `one_rdm[d, i] = <c^\dag_j c_(j+d)>` represent the distance-d correlators at each site j.
+
+    The output has shape (L, L), with encoding `output[i, j] = <c^\dag_i c_j>`.
+
+    NOTE: this construction (as well as the compressed encoding) only makes sense for real symmetric
+        one-RDMs, such as the ones from eigenstates of time-reversal-symmetrtic Hamiltonians.
+
+    Args:
+        compressed_rdm (np.ndarray): array of shape (..., L//2 + 1, L), containing the one-RDMs in the
+            compressed encoding, with the local index j on the last axis.
+
+    Returns:
+        np.ndarray: expanded one-RDM of shape (L, L)
+    """
+    shape = compressed_rdm.shape
+    L = shape[-1]
+    expanded_rdm = one_rdm_compressed_to_all_correlators(compressed_rdm)
+    symmetric_rdm = np.zeros_like(expanded_rdm)
+
+    for j in range(L):
+        rolled_column = np.roll(expanded_rdm[..., j], shift=j, axis=-1)
+        symmetric_rdm[..., j] = rolled_column
+
+    return symmetric_rdm
+
+
+def one_rdm_symmetric_matrix_to_compressed(symmetric_rdm: np.ndarray) -> np.ndarray:
+    """
+    Compress one-RDM(s) such that the j-th column contains unique correlators involving site j.
+
+    Inverse of `one_rdm_compressed_to_symmetric_matrix`.
+    """
+    shape = symmetric_rdm.shape
+    L = shape[-1]
+
+    expanded_rdm = np.zeros_like(symmetric_rdm)
+
+    for j in range(L):
+        rolled_column = np.roll(symmetric_rdm[..., j], shift=-j, axis=-1)
+        expanded_rdm[..., j] = rolled_column
+
+    return expanded_rdm[..., : (L // 2 + 1), :]  # Keep only the first L//2 + 1 rows
 
 
 # ------------- Data augmentation -------------
@@ -101,4 +152,26 @@ def augment_by_permutations(one_rdms: np.ndarray, rmft_energies: np.ndarray) -> 
             - augmented_inputs has shape (n_idcs * L!, L, L)
             - augmented_outputs has shape (n_idcs * L!,)
     """
-    pass
+    shape = one_rdms.shape
+    L = shape[-1]
+
+    # Expand one-RDMs to simplify the locality structure
+    symmetric_rdms = one_rdm_compressed_to_symmetric_matrix(one_rdms)
+
+    # Generate all permutations of the of indices 0, 1, ..., L-1
+    perms = list(itertools.permutations(range(L)))
+    perms = np.array(perms)  # Shape: (L!, L)
+
+    # Advanced indexing for efficient broadcasting of permutations
+    permuted_rdms = symmetric_rdms[..., perms[:, np.newaxis, :], perms[:, :, np.newaxis]]
+
+    # Flatten the permutation dimension
+    augmented_inputs = permuted_rdms.reshape((-1, L, L))
+
+    # Return to compressed encoding
+    augmented_inputs = one_rdm_symmetric_matrix_to_compressed(augmented_inputs)
+
+    # Repeat outputs for each transformation (interaction energy is invariant under permutations)
+    augmented_outputs = np.repeat(rmft_energies, factorial(L))
+
+    return augmented_inputs, augmented_outputs
