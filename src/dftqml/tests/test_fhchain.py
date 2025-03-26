@@ -30,7 +30,7 @@ class TestFuncions(unittest.TestCase):
 
     def test_projector_from_block_to_singlet(self):
         indices_2_2 = n_and_sz_indices(2, 2)
-        result_2 = projector_from_block_to_singlet(2, indices_2_2)
+        result_2 = projector_from_block_to_singlet(2, indices_2_2).toarray()
 
         for row in result_2:
             self.assertAlmostEqual(norm(row), 1)
@@ -45,7 +45,7 @@ class TestFuncions(unittest.TestCase):
         self.assertTrue(np.allclose(result_2, expected_2))
 
     def test_projector_block_and_singlet(self):
-        result_2 = projector_block_and_singlet(2, 2)
+        result_2 = projector_block_and_singlet(2, 2).toarray()
 
         for row in result_2:
             self.assertAlmostEqual(norm(row), 1)

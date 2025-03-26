@@ -8,6 +8,9 @@ from attrs import field, frozen
 from numpy.typing import ArrayLike
 
 
+# ******** Symmetry blocking infrastructure ********
+
+
 def n_and_sz_indices(nsites: int, nelec: int, up_then_down: bool = True) -> ArrayLike:
     """
     Generate the indices of basis states with fixed particle number and zero
@@ -51,7 +54,8 @@ def projector_from_block_to_singlet(
     ]
     s2_eigvals, s2_eigvecs = np.linalg.eigh(s2_block.toarray())
     singlet_projector = s2_eigvecs[:, np.isclose(s2_eigvals, 0)].T.conj()
-    return singlet_projector
+    sparse_singlet_projector = scipy.sparse.csr_matrix(singlet_projector)
+    return sparse_singlet_projector
 
 
 def projector_block_and_singlet(nsites: int, nelec: int, up_then_down: bool = True) -> ArrayLike:
@@ -74,9 +78,13 @@ def projector_block_and_singlet(nsites: int, nelec: int, up_then_down: bool = Tr
 
     return singlet_projector @ block_projector
 
-
 def project_operator(operator: ArrayLike, projector: ArrayLike) -> ArrayLike:
-    return projector @ operator @ projector.T.conj()
+    tmp = projector @ operator 
+    tmp2 = tmp @ projector.conj().T
+    return tmp2
+
+
+# ******** Openfermion SymbolicOperator implementation of RDM operators ********
 
 
 def spin_adapted_one_body_operator(
@@ -197,7 +205,7 @@ class FermiHubbardChain:
             raise ValueError("n_particles must be less than 2 * n_sites")
         if value % 2 != 0:
             raise ValueError("n_particles must be even in order to allow for a singlet state")
-            
+
     @spin_convention.validator
     def _spin_convention_validator(self, attribute, value):
         if value not in ["up_then_down", "interleaved"]:
@@ -207,7 +215,7 @@ class FermiHubbardChain:
     def _boundary_conditions_validator(self, attribute, value):
         if value not in ["periodic", "open"]:
             raise ValueError("boundary_conditions must be 'periodic', or 'open'")
-        
+
     # ******* Symmetry blocking infrastucure ********
 
     @cached_property
@@ -219,9 +227,11 @@ class FermiHubbardChain:
     def block_dimension(self):
         return self.block_projector.shape[0]
 
-    def _symop_to_block(self, symbolic_operator):
+    def _symop_to_block(self, symbolic_operator, keep_sparse = False):
         sparse_op = openfermion.get_sparse_operator(symbolic_operator, n_qubits=2 * self.n_sites)
         projected_op = project_operator(sparse_op, self.block_projector)
+        if scipy.sparse.issparse(projected_op) and not keep_sparse:
+            return projected_op.toarray()
         return projected_op
 
     def _check_and_project_state(self, state):
@@ -230,7 +240,6 @@ class FermiHubbardChain:
         if len(state) == 4**self.n_sites:
             return self.block_projector @ state
         raise ValueError("state size does not match block size nor full Hilbert space size")
-
 
     # ******* Uniform Hamiltonian terms *******
 
@@ -241,11 +250,11 @@ class FermiHubbardChain:
             return openfermion.FermionOperator()
         ham = openfermion.fermi_hubbard(
             x_dimension=self.n_sites, y_dimension=1, tunneling=0, coulomb=self.u, periodic=True
-        ) # periodic is irrelevant here
+        )  # periodic is irrelevant here
         if self.spin_convention == "up_then_down":
             ham = openfermion.transforms.reorder(ham, openfermion.up_then_down)
         return ham
-    
+
     @property
     def kinetic_hamiltonian(self):
         """Kinetic term only"""
@@ -256,7 +265,7 @@ class FermiHubbardChain:
         if self.spin_convention == "up_then_down":
             ham = openfermion.transforms.reorder(ham, openfermion.up_then_down)
         return ham
-    
+
     @property
     def homogeneous_hamiltonian(self):
         """homogeneous hamiltonian = kinetic + interaction (zero onsite potential)"""
@@ -274,17 +283,17 @@ class FermiHubbardChain:
     @cached_property
     def block_homogeneous_hamiltonian(self):
         return self._symop_to_block(self.homogeneous_hamiltonian)
-    
+
     def interaction_energy_expectation(self, state):
         """The state can be in block or full Hilbert space."""
         state = self._check_and_project_state(state)
         return np.real(state.conj() @ self.block_interaction_hamiltonian @ state)
-    
+
     def kinetic_energy_expectation(self, state):
         """The state can be in block or full Hilbert space."""
         state = self._check_and_project_state(state)
         return np.real(state.conj() @ self.block_kinetic_hamiltonian @ state)
-    
+
     def homogeneous_energy_expectation(self, state):
         """The state can be in block or full Hilbert space."""
         state = self._check_and_project_state(state)
@@ -297,18 +306,18 @@ class FermiHubbardChain:
         """block operators for spin-summed electron density. Axis 0 is the site index."""
         density = density_operators(self.n_sites, self.spin_convention)
         return np.array([self._symop_to_block(fop) for fop in density])
-    
+
     @cached_property
     def block_one_rdm_operators(self) -> np.ndarray:
         """Block operators for spin-summed pair corrlelators, see `one_rdm_operators`."""
         one_rdm = one_rdm_operators(self.n_sites, self.spin_convention)
         return np.array([[self._symop_to_block(fop) for fop in row] for row in one_rdm])
-    
+
     def density_expectation(self, state):
         state = self._check_and_project_state(state)
         density = np.einsum("j, ijk, k", state.conj(), self.block_density_operators, state)
         return np.real(density)
-    
+
     def one_rdm_expectation(self, state):
         state = self._check_and_project_state(state)
         one_rdm = np.einsum("k, ijkl, l", state.conj(), self.block_one_rdm_operators, state)
@@ -317,7 +326,7 @@ class FermiHubbardChain:
             return real_rdm
         else:
             raise NotImplementedError("Complex one-body reduced density matrix not implemented yet")
-    
+
     def dftio(self, state):
         """
         returns DFT input (density expectation value array) and output
@@ -325,7 +334,7 @@ class FermiHubbardChain:
         """
         state = self._check_and_project_state(state)
         return (self.density_expectation(state), self.homogeneous_energy_expectation(state))
-    
+
     def rdmftio(self, state):
         """
         returns DFT input (density expectation value array) and output
