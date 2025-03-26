@@ -74,11 +74,7 @@ with h5py.File(input_file, "r") as f:
     rdmft_energies = f["rdmft_energies"][: args.ndata]  # kinetic + interaction energy
 
 # transpose RDMs so the locality index is last, as expected by the data augmentation and model
-one_rdms = one_rdms.transpose((0, 2, 1))
-
-# if requested, expand correlators to include all local terms
-if args.expand_one_rdm:
-    one_rdms = data_processing.one_rdm_compressed_to_all_correlators(one_rdms)
+one_rdms = one_rdms.transpose((0, 2, 1)) # TODO: change this directly in the data files
 
 # if loading data was successful, go on preparing output folder
 if os.path.exists(output_dir):
@@ -105,6 +101,11 @@ for k, (train_indices, val_indices) in enumerate(kfold_gen):
 
     x_train, y_train = augment(one_rdms[train_indices], rdmft_energies[train_indices])
     x_val, y_val = augment(one_rdms[val_indices], rdmft_energies[val_indices])
+
+    # if requested, expand one_rdm correlators to include all local terms
+    if args.expand_one_rdm:
+        x_train = data_processing.one_rdm_compressed_to_all_correlators(x_train)
+        x_val = data_processing.one_rdm_compressed_to_all_correlators(x_val)
 
     batch_size = 2 * args.L * 10
 
