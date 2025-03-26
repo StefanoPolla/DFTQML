@@ -118,11 +118,6 @@ def one_rdm_operators(nsites: int, spin_convention: str) -> np.ndarray[openfermi
         The returned array has the following form (for simplicity of notation we avoid the spin
         summation, but all terms are to be conisdered summed over spin species, i.e. spin-adapted)
 
-        a = [[ c_1^{\dagger} c_1, c_2^{\dagger} c_2, ..., c_n^{\dagger} c_n ],
-             [ c_1^{\dagger} c_2, c_2^{\dagger} c_3, ..., c_n^{\dagger} c_1 ],
-             [ ... ],
-             [ c_1^{\dagger} c_{m} c_2^{\dagger} c_(m+1), ..., c_n^{\dagger} c_{m - 1}]]
-
         a = [[ c_1^{\dagger} c_1, c_1^{\dagger} c_2, ..., c_1^{\dagger} c_m    ],
              [ c_2^{\dagger} c_2, c_2^{\dagger} c_3, ..., c_2^{\dagger} c_{m+1}],
              [ ... ],
