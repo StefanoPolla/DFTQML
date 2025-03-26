@@ -1,4 +1,4 @@
-"""!! In development !!
+"""
 Run Kohn-Sham-like optimization of density for a set of harmonic potentials using a trained CNN
 model for the functional.
 
