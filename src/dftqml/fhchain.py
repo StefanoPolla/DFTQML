@@ -113,7 +113,7 @@ def one_rdm_operators(nsites: int, spin_convention: str) -> np.ndarray[openfermi
     reduced density matrix operators for a given spin convention.
 
     Ordering of the operators:
-        The returned array has shape (m, n), where n = `nsites` and m = (n//2 + 1)
+        The returned array has shape (n, m), where n = `nsites` and m = (n//2 + 1)
 
         The returned array has the following form (for simplicity of notation we avoid the spin
         summation, but all terms are to be conisdered summed over spin species, i.e. spin-adapted)
@@ -123,18 +123,25 @@ def one_rdm_operators(nsites: int, spin_convention: str) -> np.ndarray[openfermi
              [ ... ],
              [ c_1^{\dagger} c_{m} c_2^{\dagger} c_(m+1), ..., c_n^{\dagger} c_{m - 1}]]
 
+        a = [[ c_1^{\dagger} c_1, c_1^{\dagger} c_2, ..., c_1^{\dagger} c_m    ],
+             [ c_2^{\dagger} c_2, c_2^{\dagger} c_3, ..., c_2^{\dagger} c_{m+1}],
+             [ ... ],
+             [ c_n^{\dagger} c_n, c_n^{\dagger} c_1, ..., c_n^{\dagger} c_{m-1}]]
+
+
         This ordering has some useful properties:
-            1. The first row a[0] corresponds to the density.
-                The second row a[1] (+ Hermitian conjugates) corresponds to the hopping terms.
-                The j-th row corresponds to the pair correlator at distance j.
+            1. The first column a[:, 0] corresponds to the density.
+               The second column a[:, 1] (+ Hermitian conjugates) corresponds to the hopping terms.
+               The j-th column corresponds to the pair correlator at distance j.
             2. Limiting to maximum distance j < m = (n+1)//2 is enough to capture all the
-                information without duplication (except for the last row in case of even n_sites,
-                in which case the second half of that row is redundant).
+               information with minimum duplication. In fact there is no redundant information,
+               except for the last column in case of even n_sites, in which case the second half of
+               that column is redundant.
             3. Translation and mirror symmetries are manifest in the structure of the array.
-                To translate by k: `np.roll(a, k, axis=0)`. To mirror: `a[::-1]`.
-                Note that these are not symmmetries of the operators themselves, but of the
-                1-RDMFT functional. This structure makes it easy to adapt convolutaional neural
-                networks to learn the 1-RDMFT functional.
+               To translate by k: `np.roll(a, k, axis=0)`. To mirror: `a[::-1]`.
+               Note that these are not symmmetries of the operators themselves, but of the
+               1-RDMFT functional. This structure makes it easy to adapt convolutaional neural
+               networks to learn the 1-RDMFT functional.
 
     Args:
         nsites (int): number of sites
@@ -143,9 +150,9 @@ def one_rdm_operators(nsites: int, spin_convention: str) -> np.ndarray[openfermi
     one_rdm = [
         [
             spin_adapted_one_body_operator(i, (i + j) % nsites, nsites, spin_convention)
-            for i in range(nsites)
+            for j in range(nsites // 2 + 1)
         ]
-        for j in range(nsites // 2 + 1)
+        for i in range(nsites)
     ]
     return np.array(one_rdm)
 
