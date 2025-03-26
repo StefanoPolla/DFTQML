@@ -115,6 +115,7 @@ class PeriodicPadding(tf.keras.layers.Layer):
                          axis=-2)
 
 
+
 def initialize_model(x_training, y_training, *,
                      optimizer=None, enforce_symmetry=False,
                      n_filters=8):
@@ -125,11 +126,26 @@ def initialize_model(x_training, y_training, *,
     if optimizer is None:
         optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 
-    input_normalization_layer = tf.keras.layers.Normalization(
-        mean=np.mean(x_training), variance=np.var(x_training))
 
-    # custom denorm layer, see above.
-    # The keras Normalization(invert=True) is bugged.
+    # Set up normalization layer
+    
+    # def compute_and_expand_statistic(x, func):
+    #         stat = func(x, axis=(0, -1))  # Compute statistic over first and last axes
+    #         stat = np.expand_dims(stat, axis=-1)  # Add last axis
+    #         stat = np.tile(stat, (1,) * (stat.ndim - 1) + (x.shape[-1],))  # Broadcast
+    #         return stat
+    # x_mean = compute_and_expand_statistic(x_training, np.mean)
+    # x_variance=compute_and_expand_statistic(x_training, np.var
+
+    all_axes = tuple(range(x_training.ndim))
+    input_normalization_layer = tf.keras.layers.Normalization(
+        mean=np.mean(x_training, axis=(0,-1)),
+        variance=np.var(x_training, axis=(0,-1)),
+        axis=(all_axes[1:-1])
+    )
+
+
+    # custom denorm layer, see above. (The keras Normalization(invert=True) was bugged.)
     output_denormalization_layer = Denormalization(
         mean=np.mean(y_training), variance=np.var(y_training))
 

@@ -122,7 +122,7 @@ def load_harmonic_potentials_and_strengths(path: str, n_idcs: int, first_idx: in
     return potentials, strengths
 
 
-def augment_data(densities: np.ndarray, dft_energies: np.ndarray) -> Tuple:
+def augment_data(local_inputs: np.ndarray, invariant_outputs: np.ndarray) -> Tuple:
     """
     Augment the dataset according to translational and mirror symmetries.
 
@@ -130,19 +130,35 @@ def augment_data(densities: np.ndarray, dft_energies: np.ndarray) -> Tuple:
     mirrored versions of each density, each with the same energy.
 
     Args:
-        densities (np.ndarray): list of densities
-        dft_energies (np.ndarray): corresponding list of energies
+        local_inputs (np.ndarray): list of densities or RDMs of shape (n_idcs, ..., L), 
+            where n_idcs is the number of datapoints, and the last index represents locality, 
+            i.e. a shift in the last index corresponds to a real-space shift.
+        invariant_outputs (np.ndarray): corresponding list of energies, invariant under shift.
 
     Returns:
-        Tuple: augmented_densities, augmented_energies
+        Tuple: (augmented_inputs, augmented_outputs), where:
+            - augmented_inputs has shape (n_idcs * 2 * L, ..., L)
+            - augmented_outputs has shape (n_idcs * 2 * L,)
     """
-    L = densities.shape[1]
+    shape = local_inputs.shape
+    L = shape[-1]
+
+    # Generate index matrix for translational and mirror symmetries
     symmetry_index_matrix = np.array(
         [[(s * (i - j)) % L for i in range(L)] for s in [+1, -1] for j in range(L)]
     )
-    amplified_densities = np.reshape(densities[:, symmetry_index_matrix], (-1, L))
-    amplified_energies = np.repeat(dft_energies, 2 * L)
-    return amplified_densities, amplified_energies
+
+    # Apply symmetry transformations
+    augmented_inputs = np.take(local_inputs, symmetry_index_matrix, axis=-1)
+
+    # flatten the selection dimension
+    augmented_inputs = np.moveaxis(augmented_inputs, -2, 1) # Move the selection dim to the front
+    new_shape = (-1,) + shape[1:] # Combine first two axes
+    augmented_inputs = augmented_inputs.reshape(new_shape)
+
+    # Repeat invariant outputs for each transformation
+    augmented_outputs = np.repeat(invariant_outputs, 2 * L)
+    return augmented_inputs, augmented_outputs
 
 
 # ------------- Visualization -------------
