@@ -41,6 +41,10 @@ parser.add_argument("ndata", help="size of the dataset (train + val)", type=int)
 parser.add_argument("--overwrite", help="overwrite existing ouput", action="store_true")
 
 parser.add_argument(
+    "--batch_size", help="batch size for training", type=int, default=None
+)
+
+parser.add_argument(
     "--augment_by_permutations", help="augment data by permutations", action="store_true"
 )
 parser.add_argument(
@@ -54,15 +58,6 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-# if args.expand_one_rdm and args.augment_by_permutations:
-#     model_subdir = "cnn-expanded-augmented"
-# elif args.expand_one_rdm:
-#     model_subdir = "cnn-expanded"
-# elif args.augment_by_permutations:
-#     model_subdir = "cnn-augmented"
-# else:
-#     model_subdir = "cnn"
-
 model_subdir = "cnn"
 if args.expand_one_rdm:
     model_subdir += "-expanded"
@@ -70,6 +65,8 @@ if args.augment_by_permutations:
     model_subdir += "-augmented"
 if args.shuffle_data:
     model_subdir += "-shuffled"
+if args.batch_size is not None:
+    model_subdir += f"-batch{args.batch_size}"
 
 # *** Manage data directories and load input ***
 
@@ -123,7 +120,10 @@ for k, (train_indices, val_indices) in enumerate(kfold_gen):
         x_train, y_train = data_processing.shuffle_data(x_train, y_train)
         x_val, y_val = data_processing.shuffle_data(x_val, y_val)
 
-    batch_size = 2 * args.L * 10
+    if args.batch_size is not None:
+        batch_size = args.batch_size
+    else:
+        batch_size = 2 * args.L * 10
 
     # Train model
     print(f"\n\n**** TRAINING MODEL AT SPLIT {k+1}/{N_SPLITS} ****\n\n")
