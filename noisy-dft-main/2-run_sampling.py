@@ -15,8 +15,8 @@ import os
 import numpy as np
 from os import path
 
-from dftqml.fhchain import FermiHubbardChain
-from dftqml.sampling import DFTIOSampler
+from dftqml.hubbard_model.fhchain import FermiHubbardChain
+from dftqml.noisy_dft.sampling import DFTIOSampler
 
 
 POTENTIALS = "potentials"

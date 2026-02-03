@@ -3,13 +3,13 @@ import matplotlib.pyplot as plt
 import os.path
 import h5py
 from typing import Tuple
-import xgboost.sklearn  
+# import xgboost.sklearn
 import matplotlib
 
 DTYPE = np.float32
 
 
-# ------------- Data processing -------------
+# ------------- Data IO -------------
 
 
 def load_dft_data_h5(path: str, n_idcs: int, first_idx=0) -> Tuple:
@@ -122,7 +122,7 @@ def load_harmonic_potentials_and_strengths(path: str, n_idcs: int, first_idx: in
     return potentials, strengths
 
 
-def augment_data(densities: np.ndarray, dft_energies: np.ndarray) -> Tuple:
+def augment_data(local_inputs: np.ndarray, invariant_outputs: np.ndarray) -> Tuple:
     """
     Augment the dataset according to translational and mirror symmetries.
 
@@ -130,19 +130,35 @@ def augment_data(densities: np.ndarray, dft_energies: np.ndarray) -> Tuple:
     mirrored versions of each density, each with the same energy.
 
     Args:
-        densities (np.ndarray): list of densities
-        dft_energies (np.ndarray): corresponding list of energies
+        local_inputs (np.ndarray): list of densities or RDMs of shape (n_idcs, ..., L),
+            where n_idcs is the number of datapoints, and the last index represents locality,
+            i.e. a shift in the last index corresponds to a real-space shift.
+        invariant_outputs (np.ndarray): corresponding list of energies, invariant under shift.
 
     Returns:
-        Tuple: augmented_densities, augmented_energies
+        Tuple: (augmented_inputs, augmented_outputs), where:
+            - augmented_inputs has shape (n_idcs * 2 * L, ..., L)
+            - augmented_outputs has shape (n_idcs * 2 * L,)
     """
-    L = densities.shape[1]
+    shape = local_inputs.shape
+    L = shape[-1]
+
+    # Generate index matrix for translational and mirror symmetries
     symmetry_index_matrix = np.array(
         [[(s * (i - j)) % L for i in range(L)] for s in [+1, -1] for j in range(L)]
     )
-    amplified_densities = np.reshape(densities[:, symmetry_index_matrix], (-1, L))
-    amplified_energies = np.repeat(dft_energies, 2 * L)
-    return amplified_densities, amplified_energies
+
+    # Apply symmetry transformations
+    augmented_inputs = np.take(local_inputs, symmetry_index_matrix, axis=-1)
+
+    # flatten the selection dimension
+    augmented_inputs = np.moveaxis(augmented_inputs, -2, 1) # Move the selection dim to the front
+    new_shape = (-1,) + shape[1:] # Combine first two axes
+    augmented_inputs = augmented_inputs.reshape(new_shape)
+
+    # Repeat invariant outputs for each transformation
+    augmented_outputs = np.repeat(invariant_outputs, 2 * L)
+    return augmented_inputs, augmented_outputs
 
 
 # ------------- Visualization -------------
@@ -172,16 +188,16 @@ def performance_plot(model, x_test, y_test, **kwargs):
 
 
 def save_fig(
-        fig: matplotlib.figure.Figure, 
-        fig_name: str, 
-        fig_dir: str, 
+        fig: matplotlib.figure.Figure,
+        fig_name: str,
+        fig_dir: str,
         fig_fmt: str,
-        fig_size: Tuple[float, float] = [6.4, 4], 
-        save: bool = True, 
+        fig_size: Tuple[float, float] = [6.4, 4],
+        save: bool = True,
         dpi: int = 300,
         transparent_png = True,
     ):
-    """This procedure stores the generated matplotlib figure to the specified 
+    """This procedure stores the generated matplotlib figure to the specified
     directory with the specified name and format.
 
     Parameters
@@ -193,12 +209,12 @@ def save_fig(
     fig_dir : str
         Path to the directory where the figure is saved
     fig_fmt : str
-        Format of the figure, the format should be supported by matplotlib 
+        Format of the figure, the format should be supported by matplotlib
         (additional logic only for pdf and png formats)
     fig_size : Tuple[float, float]
-        Size of the figure in inches, by default [6.4, 4] 
+        Size of the figure in inches, by default [6.4, 4]
     save : bool, optional
-        If the figure should be saved, by default True. Set it to False if you 
+        If the figure should be saved, by default True. Set it to False if you
         do not want to override already produced figures.
     dpi : int, optional
         Dots per inch - the density for rasterized format (png), by default 300
@@ -207,7 +223,7 @@ def save_fig(
     """
     if not save:
         return
-    
+
     fig.set_size_inches(fig_size, forward=False)
     fig_fmt = fig_fmt.lower()
     fig_dir = os.path.join(fig_dir, fig_fmt)
@@ -231,7 +247,7 @@ def save_fig(
         for ax in axes:
             ax.patch.set_alpha(alpha)
         fig.savefig(
-            pth, 
+            pth,
             bbox_inches='tight',
             dpi=dpi,
         )
@@ -239,4 +255,35 @@ def save_fig(
         try:
             fig.savefig(pth, bbox_inches='tight')
         except Exception as e:
-            print("Cannot save figure: {}".format(e)) 
+            print("Cannot save figure: {}".format(e))
+
+
+def pyscf_ci_to_psi(civec, ncas, nelecas, spin_convention="up_then_down"):
+    """
+    Convert a PySCF CI vector to a full wavefunction vector in the occupation number basis.
+    """
+    psi = np.zeros(2**(2*ncas))
+    occslst = fci.cistring.gen_occslst(range(ncas), nelecas//2)
+    for i, occsa in enumerate(occslst):
+        for j, occsb in enumerate(occslst):
+            alpha_bin = [1 if x in occsa else 0 for x in range(ncas)]
+            beta_bin = [1 if y in occsb else 0 for y in range(ncas)]
+            alpha_bin.reverse()
+            beta_bin.reverse()
+            idx = 0
+            if spin_convention == "up_then_down":
+                for spatorb in range(ncas):
+                    if alpha_bin[spatorb] == 1:
+                        idx += 2**(spatorb + ncas)
+                    if beta_bin[spatorb] == 1:
+                        idx += 2**(spatorb)
+            elif spin_convention == "interleaved":
+                for spatorb in range(ncas):
+                    if alpha_bin[spatorb] == 1:
+                        idx += 2**(2 * spatorb + 1)
+                    if beta_bin[spatorb] == 1:
+                        idx += 2**(2 * spatorb)
+            else:
+                raise ValueError(f"Unknown spin_convention {spin_convention}")
+            psi[idx] = civec[i, j]
+    return psi

@@ -13,7 +13,7 @@ import shutil
 
 from tqdm import tqdm
 
-from dftqml.fhchain import FermiHubbardChain
+from dftqml.hubbard_model.fhchain import FermiHubbardChain
 
 
 N_ATTEMPTS = 100

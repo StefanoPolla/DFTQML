@@ -15,7 +15,7 @@ from sklearn import model_selection
 from tensorflow import autograph
 import logging
 
-from dftqml import tfmodel, utils
+from dftqml import tfmodel, utils, data_processing
 
 
 N_SPLITS = 5
@@ -79,9 +79,9 @@ kfold_gen = model_selection.KFold(n_splits=N_SPLITS).split(densities, energies)
 for k, (train_indices, val_indices) in enumerate(kfold_gen):
 
     # split and amplify data
-    x_train, y_train = utils.augment_data(densities[train_indices],
+    x_train, y_train = data_processing.augment_by_shift_and_mirror(densities[train_indices],
                                           energies[train_indices])
-    x_val, y_val = utils.augment_data(densities[val_indices],
+    x_val, y_val = data_processing.augment_by_shift_and_mirror(densities[val_indices],
                                       energies[val_indices])
 
     # Train model

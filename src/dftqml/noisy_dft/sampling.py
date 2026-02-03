@@ -1,4 +1,4 @@
-from .fhchain import FermiHubbardChain, n_and_sz_indices
+from ..hubbard_mode.fhchain import FermiHubbardChain, n_and_sz_indices
 import numpy as np
 from typing import Tuple
 
@@ -17,9 +17,7 @@ class DFTIOSampler():
 
         # prepare and store CB states probabilities
         self.block_indices = n_and_sz_indices(system.n_sites, system.n_particles)
-        unprojector = system.block_projector[:, self.block_indices].T.conj()
-        unprojected_ground_state = unprojector @ self.ground_state
-        self.diagonal_block_probabilites = np.abs(unprojected_ground_state)**2
+        self.diagonal_block_probabilites = np.abs(self.ground_state)**2
 
         # prepate and store tunneling Hamiltonian eigenbasis probabilites
         noninteracting_system = FermiHubbardChain(system.n_sites, system.n_particles,
@@ -37,18 +35,6 @@ class DFTIOSampler():
     def sample_cb_states(self, nshots):
         return binary_expansion(self.sample_diagonal_indices(nshots),
                                 2 * self.system.n_sites)
-
-    # def density_from_idx_samples(self, idx_samples):
-    #     print('s')
-    #     spinful_density_count = np.zeros(2 * self.system.nsites)
-
-    #     for i in range(2 * self.system.nsites):
-    #         spinful_density_count[-i - 1] = np.sum(
-    #             (idx_samples % (2 ** (i + 1))) // 2 ** (i))
-
-    #     spinful_density = spinful_density_count / len(idx_samples)
-    #     density = np.sum(spinful_density.reshape(2, -1), axis=0)
-    #     return density
 
     def density_from_cb_samples(self, cb_samples):
         spinful_density = np.mean(cb_samples, axis=0)

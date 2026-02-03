@@ -1,11 +1,34 @@
 # Large directory with text-form data. We only upload the consolidated hdf5 data files
 /main/data/*
 
+# data and models for the compression project. large files, we don't want to upload them
+/compression-main/data
+/compression-main/models
+/compression-main/jobs
+/compression-main/checkpoints
+
+# tmp directory
+/tmp/*
+
+# emiels slurm directory
+**/emiel-slurm/*
+*.out
+
+# numpy compressed file
+*.npz
+
+# emiels two rdm data
+/two_rdm-main/data
+/two_rdm-main/models
+
 # Mac OSX
 .DS_Store
 
 # vscode
 .vscode
+
+# github
+.github
 
 # ********* python *********
 
